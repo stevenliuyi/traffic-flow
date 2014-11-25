@@ -1,0 +1,98 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# -----------------------------------------------------------------------------
+# set computational mesh
+def set_mesh():
+    dx = (xmax-xmin) / (nx-1.)
+    x  = np.linspace(xmin, xmax, nx)
+    return x, dx
+
+# -----------------------------------------------------------------------------
+# define initial condition
+def ic():
+    u = np.ones(nx) * rho0
+    return u
+
+# -----------------------------------------------------------------------------
+# compute step size
+def step():
+    dt = cfl * dx / max(1-k*u)
+    return dt
+
+# -----------------------------------------------------------------------------
+# solver
+def lax():
+    global u, res
+    e   = flux()
+    res = residual(e)
+    u  += dt * res
+    return
+
+# -----------------------------------------------------------------------------
+# flux vector
+def flux():
+    e = np.zeros(nx-1)
+    for i in range(0,nx-1):
+        u1   = (u[i] + u[i+1]) / 2
+        v1   = 1 - k * u1
+        e[i] = u1 * v1 - .5 * dx / dt * (u[i+1] - u[i])
+    return e
+
+# -----------------------------------------------------------------------------
+# residual
+def residual(e):
+    res = np.zeros(nx)
+    for i in range(1, nx-1):
+        res[i] = -(e[i] - e[i-1]) / dx
+    return res
+
+xmin = 0
+xmax = 50
+nx   = 201     # number of grid points
+
+rho0 = 0.2
+k    = 0.9
+fr   = 0.1
+cfl  = 0.5
+imax = 1000
+eps  = 1e-5
+tmax = 10
+
+
+# grid points
+(x, dx) = set_mesh()
+# initial condition
+u = ic()
+
+fig = plt.figure()
+ax  = fig.add_subplot(111)
+
+time = 0
+for i in range(0, imax):
+    # step size
+    dt = step()
+
+    lax()
+    maxres = max(abs(res))
+    # if (maxres < 1e-5): break
+    time  += dt
+    if (time < tmax * fr):
+        color = 'r'
+        u[0] = 0.
+    else:
+        color = 'g'
+        u[0] = rho0
+    u[-1] = u[-2]
+
+    if (time > tmax): time = 0
+    
+    if (i == 0):
+        line1, = ax.plot(x, u,'-o')
+        line1.set_color(color)
+        ax.set_ylim(0,1)
+        fig.show()
+    else:
+        line1.set_ydata(u)
+        line1.set_color(color)
+        fig.canvas.draw()
