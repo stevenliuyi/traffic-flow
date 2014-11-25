@@ -24,14 +24,24 @@ def step():
 # solver
 def solver():
     global u, res
-    e   = flux()
-    res = residual(e)
-    u  += dt * res
+    if (method == 'maccormack'):
+        for stage in range(0,2):
+            e   = flux(stage)
+            res = residual(e)
+            if (stage == 0):
+                u_old = np.copy(u)
+                u += dt * res
+            elif (stage == 1):
+                u = .5 * (u + u_old + dt * res)
+    else:
+        e   = flux()
+        res = residual(e)
+        u  += dt * res
     return
 
 # -----------------------------------------------------------------------------
 # flux vector
-def flux():
+def flux(stage=0):
     e = np.zeros(nx-1)
     for i in range(0,nx-1):
         # Lax method
@@ -53,6 +63,16 @@ def flux():
             e2 = u2 * v2
             a  = .5 * (v1 + v2)
             e[i] = .5 * (e1 + e2) - .5 * dt / dx * a * (e2 - e1)
+        # MacCormack method
+        elif (method == 'maccormack'):
+            if (stage == 0):
+                u2 = u[i+1]
+                v2 = 1 - k * u2
+                e[i] = u2 * v2
+            elif (stage == 1):
+                u1 = u[i]
+                v1 = 1 - k * u1
+                e[i] = u1 * v1
     return e
 
 # -----------------------------------------------------------------------------
@@ -75,7 +95,7 @@ imax = 1000
 eps  = 1e-5
 tmax = 10
 
-method = 'lax-wendroff'
+method = 'maccormack'
 
 # grid points
 (x, dx) = set_mesh()
