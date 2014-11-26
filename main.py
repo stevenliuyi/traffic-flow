@@ -47,47 +47,47 @@ def solver():
     return
 
 # -----------------------------------------------------------------------------
+# flux vector at a single grid point
+def ee(ui):
+    vi = 1 - k * ui
+    ei = ui * vi
+    return ei
+    
+# -----------------------------------------------------------------------------
+# Jacobi matrix at a single grid point
+def aa(ui):
+    vi = 1 - k * ui
+    ai = vi
+    return ai
+
+# -----------------------------------------------------------------------------
 # flux vector
 def flux(stage=0):
     e = np.zeros(nx-1)
     for i in range(0,nx-1):
         # Lax method
         if (method == 'lax'):
-            u1 = u[i]
-            v1 = 1 - k * u1
-            u2 = u[i+1]
-            v2 = 1 - k * u2
-            e1 = u1 * v1
-            e2 = u2 * v2
+            e1 = ee(u[i])
+            e2 = ee(u[i+1])
             e[i] = .5 * (e1 + e2) - .5 * dx / dt * (u[i+1] - u[i])
         # Lax-Wendroff method
         elif (method == 'lax-wendroff'):
-            u1 = u[i]
-            v1 = 1 - k * u1
-            u2 = u[i+1]
-            v2 = 1 - k * u2
-            e1 = u1 * v1
-            e2 = u2 * v2
-            a  = .5 * (v1 + v2)
+            e1 = ee(u[i])
+            e2 = ee(u[i+1])
+            a1 = aa(u[i])
+            a2 = aa(u[i+1])
+            a  = .5 * (a1 + a2)
             e[i] = .5 * (e1 + e2) - .5 * dt / dx * a * (e2 - e1)
         # MacCormack method
         elif (method == 'maccormack'):
             if (stage == 0):
-                u2 = u[i+1]
-                v2 = 1 - k * u2
-                e[i] = u2 * v2
+                e[i] = ee(u[i+1])
             elif (stage == 1):
-                u1 = u[i]
-                v1 = 1 - k * u1
-                e[i] = u1 * v1
+                e[i] = ee(u[i])
         # Jameson 4-stage Runga-Kutta
         elif (method == 'rk4'):
-            u1 = u[i]
-            v1 = 1 - k * u1
-            u2 = u[i+1]
-            v2 = 1 - k * u2
-            e1 = u1 * v1
-            e2 = u2 * v2
+            e1 = ee(u[i])
+            e2 = ee(u[i+1])
             e[i] = .5 * (e1 + e2)
     return e
 
@@ -111,7 +111,7 @@ imax = 1000
 eps  = 1e-5
 tmax = 20
 
-method = 'rk4'
+method = 'maccormack'
 
 # grid points
 (x, dx) = set_mesh()
