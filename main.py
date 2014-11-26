@@ -33,6 +33,13 @@ def solver():
                 u += dt * res
             elif (stage == 1):
                 u = .5 * (u + u_old + dt * res)
+    elif (method == 'rk4'):
+        alpha = [1./4, 1./3, 1./2, 1.]
+        u_old = np.copy(u)
+        for stage in range(0,4):
+            e   = flux()
+            res = residual(e)
+            u   = u_old + alpha[stage] * dt * res
     else:
         e   = flux()
         res = residual(e)
@@ -73,6 +80,15 @@ def flux(stage=0):
                 u1 = u[i]
                 v1 = 1 - k * u1
                 e[i] = u1 * v1
+        # Jameson 4-stage Runga-Kutta
+        elif (method == 'rk4'):
+            u1 = u[i]
+            v1 = 1 - k * u1
+            u2 = u[i+1]
+            v2 = 1 - k * u2
+            e1 = u1 * v1
+            e2 = u2 * v2
+            e[i] = .5 * (e1 + e2)
     return e
 
 # -----------------------------------------------------------------------------
@@ -89,13 +105,13 @@ nx   = 201     # number of grid points
 
 rho0 = 0.2
 k    = 0.9
-fr   = 0.8
+fr   = 0.2
 cfl  = 0.5
 imax = 1000
 eps  = 1e-5
-tmax = 10
+tmax = 20
 
-method = 'maccormack'
+method = 'rk4'
 
 # grid points
 (x, dx) = set_mesh()
