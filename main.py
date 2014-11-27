@@ -89,6 +89,9 @@ def flux(stage=0):
             e1 = ee(u[i])
             e2 = ee(u[i+1])
             e[i] = .5 * (e1 + e2)
+
+    # artificial viscosity
+    if (avmodel): e = av(e)
     return e
 
 # -----------------------------------------------------------------------------
@@ -98,6 +101,20 @@ def residual(e):
     for i in range(1, nx-1):
         res[i] = -(e[i] - e[i-1]) / dx
     return res
+
+# -----------------------------------------------------------------------------
+# artificial viscosity
+def av(e):
+    # Von-Neumann & Ritchmyer
+    lam0 = max(abs(1-k*u))
+    u0   = .5
+    for i in range(1,nx-2):
+        du   = u[i+1] - u[i]
+        d3u  = u[i+2] - 3*u[i+1] + 3*u[i] - u[i-1]
+        eps2 = kappa2 * abs(du) / u0
+        eps4 = kappa4
+        e[i] -= (eps2 * du - eps4 * d3u) * lam0
+    return e
 
 xmin = 0
 xmax = 50
@@ -111,7 +128,11 @@ imax = 1000
 eps  = 1e-5
 tmax = 20
 
-method = 'maccormack'
+method  = 'rk4'
+
+avmodel = True
+kappa2  = 2.
+kappa4  = 0.2
 
 # grid points
 (x, dx) = set_mesh()
