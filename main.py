@@ -17,7 +17,7 @@ def ic():
 # -----------------------------------------------------------------------------
 # compute step size
 def step():
-    dt = cfl * dx / max(abs(1-k*u))
+    dt = cfl * dx / maxlam(u)
     return dt
 
 # -----------------------------------------------------------------------------
@@ -47,16 +47,40 @@ def solver():
     return
 
 # -----------------------------------------------------------------------------
+# compute maximum eigenvalue of Jacobi matrix
+def maxlam(u):
+    lam = 0.
+    for i in range(0, len(u)):
+        lam = max(lam, abs(vel(u[i])))
+    return lam
+
+# -----------------------------------------------------------------------------
+# model for velocity
+def vel(rho):
+    if (model == 'lwr-greenshield'):
+        k = 0.9
+        v = 1 - k * rho
+    elif (model == 'lwr-greenberg'):
+        vmax = 10.
+        if (rho < 1/np.exp(vmax)):
+            v = vmax
+        else:
+            v = min(vmax, np.log(1/rho))
+    elif (model == 'lwr-underwood'):
+        v = np.exp(-rho)
+    return v
+
+# -----------------------------------------------------------------------------
 # flux vector at a single grid point
 def ee(ui):
-    vi = 1 - k * ui
+    vi = vel(ui)
     ei = ui * vi
     return ei
     
 # -----------------------------------------------------------------------------
 # Jacobi matrix at a single grid point
 def aa(ui):
-    vi = 1 - k * ui
+    vi = vel(ui)
     ai = vi
     return ai
 
@@ -106,7 +130,7 @@ def residual(e):
 # artificial viscosity
 def av(e):
     # Von-Neumann & Ritchmyer
-    lam0 = max(abs(1-k*u))
+    lam0 = maxlam(u)
     u0   = .5
     for i in range(1,nx-2):
         du   = u[i+1] - u[i]
@@ -121,14 +145,19 @@ xmax = 50
 nx   = 201     # number of grid points
 
 rho0 = 0.2
-k    = 0.9
 fr   = 0.2
 cfl  = 0.5
 imax = 1000
 eps  = 1e-5
 tmax = 20
 
-method  = 'rk4'
+# traffic flow model
+# acceptable values: lwr-greenshield, lwr-greenberg, lwr-underwood
+model = 'lwr-underwood'
+
+# numerical methods
+# acceptable values: lax, lax-wendroff, maccormack, rk4
+method  = 'maccormack'
 
 avmodel = True
 kappa2  = 2.
