@@ -12,11 +12,11 @@ def set_mesh():
 # define initial condition
 def ic():
     u = np.ones((lmax, nx))
-    if (lmax == 1):
+    if (model == 'lwr'):
         u[0,:] *= rho0
-    elif (lmax == 2):
+    elif (model == 'pw'):
         u[0,:] *= rho0
-        u[1,:] *= rho0 * (1 - .9*rho0)
+        u[1,:] *= rho0 * vel(rho0)
     return u
 
 # -----------------------------------------------------------------------------
@@ -57,35 +57,35 @@ def solver():
 def maxlam(u):
     lam = 0.
     for i in range(0, nx):
-        if (lmax == 1):
+        if (model == 'lwr'):
             lam = max(lam, abs(vel(u[0,i])))
-        elif (lmax == 2):
+        elif (model == 'pw'):
             lam = max(lam, abs(u[1,i]/u[0,i])+c0)
     return lam
 
 # -----------------------------------------------------------------------------
 # model for velocity
 def vel(rho):
-    if (model == 'lwr-greenshield'):
+    if (state == 'greenshield'):
         k = 0.9
         v = 1 - k * rho
-    elif (model == 'lwr-greenberg'):
+    elif (state == 'greenberg'):
         vmax = 10.
         if (rho < 1/np.exp(vmax)):
             v = vmax
         else:
             v = min(vmax, np.log(1/rho))
-    elif (model == 'lwr-underwood'):
+    elif (state == 'underwood'):
         v = np.exp(-rho)
     return v
 
 # -----------------------------------------------------------------------------
 # flux vector at a single grid point
 def ee(ui):
-    if (lmax == 1):
+    if (model == 'lwr'):
         vi = vel(ui)
         ei = ui * vi
-    elif (lmax == 2):
+    elif (model == 'pw'):
         rhoi = ui[0]
         vi   = ui[1] / ui[0]
         ei = np.array([rhoi*vi, rhoi*vi**2 + c0**2*rhoi])
@@ -136,11 +136,12 @@ def flux(stage=0):
 # source vector
 def source(u):
     s = np.zeros((lmax,nx))
+    tau = 10.
     for i in range(0, nx):
         rhoi   = u[0,i]
         vi     = u[1,i] / u[0,i]
         s[0,i] = 0.
-        s[1,i] = rhoi * ((1 - .9 * rhoi) - vi) / 2.
+        s[1,i] = rhoi * (vel(rhoi) - vi) / tau
     return s
 
 # -----------------------------------------------------------------------------
@@ -149,7 +150,7 @@ def residual(e):
     res = np.zeros((lmax,nx))
     for i in range(1, nx-1):
         res[:,i] = -(e[:,i] - e[:,i-1]) / dx
-    #if (lmax == 2): res += source(u)
+    # if (model == 'pw'): res += source(u)
     return res
 
 # -----------------------------------------------------------------------------
@@ -169,23 +170,26 @@ def av(e):
 # -----------------------------------------------------------------------------
 # parameters
 xmin = 0
-xmax = 50
-nx   = 101     # number of grid points
+xmax = 100
+nx   = 201     # number of grid points
 
-rho0 = 0.8
+rho0 = 0.2
 fr   = 0.2
 cfl  = 0.5
-imax = 1000
+imax = 500
 eps  = 1e-5
 tmax = 20
+c0   = 0.5     # for PW model
 
 # -----------------------------------------------------------------------------
 # traffic flow model
-# acceptable values: lwr-greenshield, lwr-greenberg, lwr-underwood, pw
-model = 'lwr-greenshield'
+# acceptable values: lwr (Lighthill-Whitham-Richards), pw (Payne-Whitham)
 model = 'pw'
-c0 = .5
 lmax  = 2 if (model == 'pw') else 1
+
+# relationship between density and speed
+# acceptable values: greenshield, greenberg, underwood
+state = 'greenshield'
 
 # -----------------------------------------------------------------------------
 # numerical methods
@@ -223,7 +227,7 @@ for i in range(0, imax):
             if (u[1,1]/u[0,1]<c0):
                 u[1,0] = u[1,1]
             else:
-                u[1,0] = u[0,0]*(1-.9*u[0,0])
+                u[1,0] = u[0,0]*vel(u[0,0])
     else:
         color = 'g'
         if (lmax == 1):
