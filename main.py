@@ -197,10 +197,16 @@ def av(e):
     return e
 
 # -----------------------------------------------------------------------------
+# determine the order of given method
+def get_order(method):
+    order = {'lax':1, 'lax-wendroff':2, 'maccormack':2, 'rk4':2, \
+             'roe':1}
+    return order[method]
+# -----------------------------------------------------------------------------
 # parameters
 xmin = 0
 xmax = 100
-nx   = 201     # number of grid points
+nx   = 151     # number of grid points
 
 rho0 = 0.2
 fr   = 0.2
@@ -222,12 +228,16 @@ state = 'greenshield'
 
 # -----------------------------------------------------------------------------
 # numerical methods
-# acceptable values: lax, lax-wendroff, maccormack, rk4
+# acceptable values: lax, lax-wendroff, maccormack, rk4, roe
 method  = 'roe'
 
 avmodel = True
 kappa2  = 2.
 kappa4  = 0.05
+
+# turn off AV model for first-order schemes
+order = get_order(method)
+if (order == 1): avmodel = False
 
 # grid points
 (x, dx) = set_mesh()
