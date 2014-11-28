@@ -88,14 +88,18 @@ def ee(ui):
     elif (model == 'pw'):
         rhoi = ui[0]
         vi   = ui[1] / ui[0]
-        ei = np.array([rhoi*vi, rhoi*vi**2 + c0**2*rhoi])
+        ei   = np.array([rhoi*vi, rhoi*vi**2 + c0**2*rhoi])
     return ei
     
 # -----------------------------------------------------------------------------
 # Jacobi matrix at a single grid point
 def aa(ui):
-    vi = vel(ui)
-    ai = vi
+    if (model == 'lwr'):
+        vi = vel(ui)
+        ai = vi
+    elif (model == 'pw'):
+        vi = ui[1] / ui[0]
+        ai = np.array([[0, 1], [c0**2-vi**2, 2*vi]])
     return ai
 
 # -----------------------------------------------------------------------------
@@ -115,7 +119,7 @@ def flux(stage=0):
             a1 = aa(u[:,i])
             a2 = aa(u[:,i+1])
             a  = .5 * (a1 + a2)
-            e[:,i] = .5 * (e1 + e2) - .5 * dt / dx * a * (e2 - e1)
+            e[:,i] = .5 * (e1 + e2) - .5 * dt / dx * np.dot(a, e2 - e1)
         # MacCormack method
         elif (method == 'maccormack'):
             if (stage == 0):
@@ -194,11 +198,11 @@ state = 'greenshield'
 # -----------------------------------------------------------------------------
 # numerical methods
 # acceptable values: lax, lax-wendroff, maccormack, rk4
-method  = 'lax'
+method  = 'lax-wendroff'
 
-avmodel = False
+avmodel = True
 kappa2  = 2.
-kappa4  = 0.2
+kappa4  = 0.05
 
 # grid points
 (x, dx) = set_mesh()
@@ -224,10 +228,10 @@ for i in range(0, imax):
             u[0,0] = 0.
         elif (lmax == 2):
             u[0,0] = 0.01
-            if (u[1,1]/u[0,1]<c0):
-                u[1,0] = u[1,1]
-            else:
-                u[1,0] = u[0,0]*vel(u[0,0])
+            #if (u[1,1]/u[0,1]<c0):
+            #    u[1,0] = u[1,1]
+            #else:
+            u[1,0] = u[0,0]*vel(u[0,0])
     else:
         color = 'g'
         if (lmax == 1):
