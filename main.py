@@ -92,7 +92,7 @@ def ee(ui):
     return ei
     
 # -----------------------------------------------------------------------------
-# Jacobi matrix at a single grid point
+# Jacobi matrix A at a single grid point
 def aa(ui):
     if (model == 'lwr'):
         vi = vel(ui)
@@ -102,6 +102,13 @@ def aa(ui):
         ai = np.array([[0, 1], [c0**2-vi**2, 2*vi]])
     return ai
 
+# -----------------------------------------------------------------------------
+# modal matrix T
+def tt(ui):
+    if (model == 'pw'):
+        vi = ui[1] / ui[0]
+        ti = np.array([[1,1], [vi+c0, vi-c0]])
+    return ti
 # -----------------------------------------------------------------------------
 # flux vector
 def flux(stage=0):
@@ -131,6 +138,24 @@ def flux(stage=0):
             e1 = ee(u[:,i])
             e2 = ee(u[:,i+1])
             e[:,i] = .5 * (e1 + e2)
+        elif (method == 'roe'):
+            e1      = ee(u[:,i])
+            e2      = ee(u[:,i+1])
+            rho1    = u[0,i]
+            rho2    = u[0,i+1]
+            v1      = u[1,i]   / u[0,i]
+            v2      = u[1,i+1] / u[0,i+1]
+            # evaluation of the interfacial state
+            R       = np.sqrt(rho2 / rho1) if (rho1>=0 and rho2>=0) else 0
+            avgrho  = R * rho1
+            avgv    = (R * v2 + v1) / (R + 1)
+            avgu    = [avgrho, avgrho*avgv]
+            avglam  = [avgv + c0, avgv - c0]
+            avgt    = tt(avgu)
+            delta = np.dot(np.linalg.inv(avgt), u[:,i+1] - u[:,i])
+            e[:,i] = .5 * (e1 + e2)
+            for l in range(0, lmax):
+                e[:,i] -= .5 * delta[l] * abs(avglam[l]) * avgt[:,l]
 
     # artificial viscosity
     if (avmodel): e = av(e)
@@ -198,7 +223,7 @@ state = 'greenshield'
 # -----------------------------------------------------------------------------
 # numerical methods
 # acceptable values: lax, lax-wendroff, maccormack, rk4
-method  = 'lax-wendroff'
+method  = 'roe'
 
 avmodel = True
 kappa2  = 2.
