@@ -49,7 +49,6 @@ def solver():
         e   = flux()
         res = residual(e)
         u  += dt * res
-        #print u[:,1:10]
     return
 
 # -----------------------------------------------------------------------------
@@ -110,6 +109,23 @@ def tt(ui):
         ti = np.array([[1,1], [vi+c0, vi-c0]])
     return ti
 # -----------------------------------------------------------------------------
+# Roe-averaging (evalution of interfacial face)
+def roe_avg(u1, u2):
+    rho1    = max(u1[0], 1e-3)
+    rho2    = max(u2[0], 1e-3)
+    v1      = min(u1[1] / u1[0], 10.)
+    v2      = min(u2[1] / u2[0], 10.)
+    R       = np.sqrt(rho2 / rho1) if (rho1>=0 and rho2>=0) else 0
+    avgrho  = R * rho1
+    avgv    = (R * v2 + v1) / (R + 1)
+    avgu    = [avgrho, avgrho*avgv]
+    avglam  = np.array([avgv + c0, avgv - c0])
+    avgt    = tt(avgu)
+    avgsig  = np.sign(avglam)
+    delta   = np.dot(np.linalg.inv(avgt), u2 - u1)
+    return (delta, avglam, avgt, avgsig)
+
+# -----------------------------------------------------------------------------
 # flux vector
 def flux(stage=0):
     e = np.zeros((lmax, nx-1))
@@ -156,6 +172,27 @@ def flux(stage=0):
             e[:,i] = .5 * (e1 + e2)
             for l in range(0, lmax):
                 e[:,i] -= .5 * delta[l] * abs(avglam[l]) * avgt[:,l]
+        elif (method == 'tvd'):
+            e1      = ee(u[:,i])
+            e2      = ee(u[:,i+1])
+                
+            e[:,i] = .5 * (e1 + e2)
+            if (i > 0 and i < nx-2):
+                (delta,  avglam,  avgt,  avgsig)  = \
+                    roe_avg(u[:,i],   u[:,i+1])
+                (delta1, avglam1, avgt1, avgsig1) = \
+                    roe_avg(u[:,i-1], u[:,i])
+                (delta2, avglam2, avgt2, avgsig2) = \
+                    roe_avg(u[:,i+1], u[:,i+2])
+                for l in range(0, lmax):
+                    if (avgsig[l] > 0):
+                        r = 2 if (delta[l]==0) else delta1[l] / delta[l]
+                    else:
+                        r = 2 if (delta[l]==0) else delta2[l] / delta[l]
+                    phi = max(0, min(1,2*r), min(r,2))
+                    phi = (r + abs(r)) / (1 + abs(r))
+                    e[:,i] -= .5 * (avgsig[l] + phi * (avglam[l] * dt / dx \
+                        - avgsig[l])) * delta[l] * abs(avglam[l]) * avgt[:,l]
 
     # artificial viscosity
     if (avmodel): e = av(e)
@@ -200,7 +237,7 @@ def av(e):
 # determine the order of given method
 def get_order(method):
     order = {'lax':1, 'lax-wendroff':2, 'maccormack':2, 'rk4':2, \
-             'roe':1}
+             'roe':1, 'tvd':2}
     return order[method]
 # -----------------------------------------------------------------------------
 # parameters
@@ -229,9 +266,9 @@ state = 'greenshield'
 # -----------------------------------------------------------------------------
 # numerical methods
 # acceptable values: lax, lax-wendroff, maccormack, rk4, roe
-method  = 'roe'
+method  = 'tvd'
 
-avmodel = True
+avmodel = False
 kappa2  = 2.
 kappa4  = 0.05
 
