@@ -202,7 +202,7 @@ def flux(stage=0):
 # source vector
 def source(u):
     s = np.zeros((lmax,nx))
-    tau = 10.
+    tau = 1.
     for i in range(0, nx):
         rhoi   = u[0,i]
         vi     = u[1,i] / u[0,i]
@@ -216,7 +216,7 @@ def residual(e):
     res = np.zeros((lmax,nx))
     for i in range(1, nx-1):
         res[:,i] = -(e[:,i] - e[:,i-1]) / dx
-    # if (model == 'pw'): res += source(u)
+    if (model == 'pw'): res += source(u)
     return res
 
 # -----------------------------------------------------------------------------
@@ -245,7 +245,7 @@ xmin = 0
 xmax = 100
 nx   = 151     # number of grid points
 
-rho0 = 0.2
+rho0 = 0.5
 fr   = 0.2
 cfl  = 0.5
 imax = 500
@@ -265,10 +265,10 @@ state = 'greenshield'
 
 # -----------------------------------------------------------------------------
 # numerical methods
-# acceptable values: lax, lax-wendroff, maccormack, rk4, roe
+# acceptable values: lax, lax-wendroff, maccormack, rk4, roe, tvd
 method  = 'tvd'
 
-avmodel = False
+avmodel = True
 kappa2  = 2.
 kappa4  = 0.05
 
