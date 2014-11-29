@@ -131,13 +131,20 @@ def tt(ui):
 def roe_avg(u1, u2):
     rho1    = max(u1[0], 1e-3)
     rho2    = max(u2[0], 1e-3)
-    v1      = min(u1[1] / u1[0], 10.)
-    v2      = min(u2[1] / u2[0], 10.)
     R       = np.sqrt(rho2 / rho1) if (rho1>=0 and rho2>=0) else 0
     avgrho  = R * rho1
-    avgv    = (R * v2 + v1) / (R + 1)
-    avgu    = [avgrho, avgrho*avgv]
-    avglam  = np.array([avgv + c0, avgv - c0])
+    if (model == 'pw'):
+        v1      = min(u1[1] / u1[0], 10.)
+        v2      = min(u2[1] / u2[0], 10.)
+        avgv    = (R * v2 + v1) / (R + 1)
+        avgu    = [avgrho, avgrho*avgv]
+        avglam  = np.array([avgv + c0, avgv - c0])
+    elif (model == 'zhang'):
+        v1      = u1[1] / rho1 + vel(rho1)
+        v2      = u2[1] / rho2 + vel(rho2)
+        avgv    = (R * v2 + v1) / (R + 1)
+        avgu    = [avgrho, avgrho*(avgv-vel(avgrho))]
+        avglam  = np.array([avgv, avgv + avgrho*(-k)])
     avgt    = tt(avgu)
     avgsig  = np.sign(avglam)
     delta   = np.dot(np.linalg.inv(avgt), u2 - u1)
@@ -201,23 +208,12 @@ def flux(stage=0):
         elif (method == 'roe'):
             e1      = ee(u[:,i])
             e2      = ee(u[:,i+1])
-            rho1    = u[0,i]
-            rho2    = u[0,i+1]
-            v1      = u[1,i]   / u[0,i]
-            v2      = u[1,i+1] / u[0,i+1]
-            # evaluation of the interfacial state
-            R       = np.sqrt(rho2 / rho1) if (rho1>=0 and rho2>=0) else 0
-            avgrho  = R * rho1
-            avgv    = (R * v2 + v1) / (R + 1)
-            avgu    = [avgrho, avgrho*avgv]
-            avglam  = [avgv + c0, avgv - c0]
-            avgt    = tt(avgu)
-            delta = np.dot(np.linalg.inv(avgt), u[:,i+1] - u[:,i])
+            (delta,  avglam,  avgt,  avgsig) = roe_avg(u[:,i],   u[:,i+1])
             e[:,i] = .5 * (e1 + e2)
             for l in range(0, lmax):
                 e[:,i] -= .5 * delta[l] * abs(avglam[l]) * avgt[:,l]
         # TVD method
-        elif (method == 'tvd'):
+        elif (method[:3] == 'tvd'):
             e1      = ee(u[:,i])
             e2      = ee(u[:,i+1])
                 
@@ -231,11 +227,14 @@ def flux(stage=0):
                     roe_avg(u[:,i+1], u[:,i+2])
                 for l in range(0, lmax):
                     if (avgsig[l] > 0):
-                        r = 2 if (delta[l]==0) else delta1[l] / delta[l]
+                        r = 1e2 if (delta[l]==0) else delta1[l] / delta[l]
                     else:
-                        r = 2 if (delta[l]==0) else delta2[l] / delta[l]
-                    phi = max(0, min(1,2*r), min(r,2))
-                    phi = (r + abs(r)) / (1 + abs(r))
+                        r = 1e2 if (delta[l]==0) else delta2[l] / delta[l]
+                    # Roe superbee limiter
+                    if (method == 'tvd-superbee'):
+                        phi = max(0, min(1,2*r), min(r,2))
+                    elif (method == 'tvd-vanleer'):
+                        phi = (r + abs(r)) / (1 + abs(r))
                     e[:,i] -= .5 * (avgsig[l] + phi * (avglam[l] * dt / dx \
                         - avgsig[l])) * delta[l] * abs(avglam[l]) * avgt[:,l]
 
@@ -281,8 +280,14 @@ def av(e):
 # -----------------------------------------------------------------------------
 # determine the order of given method
 def get_order(method):
-    order = {'lax':1, 'lax-wendroff':2, 'maccormack':2, 'rk4':2, \
-             'steger-warming':1, 'roe':1, 'tvd':2}
+    order = {'lax':            1, \
+             'lax-wendroff':   2, \
+             'maccormack':     2, \
+             'rk4':            2, \
+             'steger-warming': 1, \
+             'roe':            1, \
+             'tvd-superbee':   2, \
+             'tvd-vanleer':    2}
     return order[method]
 # -----------------------------------------------------------------------------
 # parameters
@@ -290,7 +295,7 @@ xmin = 0
 xmax = 100
 nx   = 151     # number of grid points
 
-rho0  = 0.2
+rho0  = 0.5
 fr    = 0.2
 cfl   = 0.5
 imax  = 500
@@ -315,10 +320,11 @@ state = 'greenshield'
 # -----------------------------------------------------------------------------
 # numerical methods
 # acceptable values:
-## lax, lax-wendroff, maccormack, steger-warming, rk4, roe, tvd
-method  = 'steger-warming'
+## lax, lax-wendroff, maccormack, steger-warming
+## rk4, roe, tvd-superbee, tvd-vanleer
+method  = 'tvd-superbee'
 
-avmodel = True
+avmodel = False
 kappa2  = 2.
 kappa4  = 0.05
 
