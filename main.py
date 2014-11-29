@@ -65,14 +65,13 @@ def maxlam(u):
             lam = max(lam, abs(u[1,i]/u[0,i])+c0)
         elif (model == 'zhang'):
             vi  = u[1,i]/u[0,i] + vel(u[0,i])
-            lam = max(lam, abs(vi), abs(vi+u[0,i]*(-0.9)))
+            lam = max(lam, abs(vi), abs(vi+u[0,i]*(-k)))
     return lam
 
 # -----------------------------------------------------------------------------
 # model for velocity
 def vel(rho):
     if (state == 'greenshield'):
-        k = 0.9
         v = 1 - k * rho
     elif (state == 'greenberg'):
         vmax = 10.
@@ -109,6 +108,11 @@ def aa(ui):
     elif (model == 'pw'):
         vi = ui[1] / ui[0]
         ai = np.array([[0, 1], [c0**2-vi**2, 2*vi]])
+    elif (model == 'zhang'):
+        rhoi = ui[0]
+        mi   = ui[1]
+        ai   = np.array([[rhoi*(-k)+vel(rhoi), 1], \
+                [-mi**2/rhoi**2+mi*(-k), 2*mi/rhoi+vel(rhoi)]])
     return ai
 
 # -----------------------------------------------------------------------------
@@ -278,6 +282,7 @@ cfl   = 0.5
 imax  = 500
 eps   = 1e-5
 tmax  = 20
+k     = 0.9     # for Greenshield model
 c0    = 0.5     # for PW model
 
 # -----------------------------------------------------------------------------
@@ -296,7 +301,7 @@ state = 'greenshield'
 # -----------------------------------------------------------------------------
 # numerical methods
 # acceptable values: lax, lax-wendroff, maccormack, rk4, roe, tvd
-method  = 'lax'
+method  = 'lax-wendroff'
 
 avmodel = False
 kappa2  = 2.
