@@ -121,6 +121,10 @@ def tt(ui):
     if (model == 'pw'):
         vi = ui[1] / ui[0]
         ti = np.array([[1,1], [vi+c0, vi-c0]])
+    elif (model == 'zhang'):
+        rhoi = ui[0]
+        vi   = ui[1] / rhoi + vel(rhoi)
+        ti   = np.array([[1,1], [vi-vel(rhoi)-rhoi*(-k), vi-vel(rhoi)]])
     return ti
 # -----------------------------------------------------------------------------
 # Roe-averaging (evalution of interfacial face)
@@ -170,12 +174,22 @@ def flux(stage=0):
             e[:,i] = .5 * (e1 + e2)
         # Steger & Warming flux vetcor splitting
         elif (method == 'steger-warming'):
-            v1     = u[1,i]   / u[0,i]
-            v2     = u[1,i+1] / u[0,i+1]
-            lam1_p = max(v1+c0, 0)
-            lam2_p = max(v1-c0, 0)
-            lam1_m = min(v2+c0, 0)
-            lam2_m = min(v2-c0, 0)
+            if (model == 'pw'):
+                v1     = u[1,i]   / u[0,i]
+                v2     = u[1,i+1] / u[0,i+1]
+                lam1_p = max(v1+c0, 0)
+                lam2_p = max(v1-c0, 0)
+                lam1_m = min(v2+c0, 0)
+                lam2_m = min(v2-c0, 0)
+            elif (model == 'zhang'):
+                rho1   = u[0,i]
+                rho2   = u[0,i+1]
+                v1     = u[1,i]   / rho1 + vel(rho1)
+                v2     = u[1,i+1] / rho2 + vel(rho2)
+                lam1_p = max(v1, 0)
+                lam2_p = max(v1+rho1*(-k), 0)
+                lam1_m = min(v2, 0)
+                lam2_m = min(v2+rho2*(-k), 0)
             Lam_p  = np.array([[lam1_p, 0], [0, lam2_p]])
             Lam_m  = np.array([[lam1_m, 0], [0, lam2_m]])
             a_p    = np.dot(tt(u[:,i]),   Lam_p, np.linalg.inv(tt(u[:,i])))
@@ -276,7 +290,7 @@ xmin = 0
 xmax = 100
 nx   = 151     # number of grid points
 
-rho0  = 0.5
+rho0  = 0.2
 fr    = 0.2
 cfl   = 0.5
 imax  = 500
@@ -300,10 +314,11 @@ state = 'greenshield'
 
 # -----------------------------------------------------------------------------
 # numerical methods
-# acceptable values: lax, lax-wendroff, maccormack, rk4, roe, tvd
-method  = 'lax-wendroff'
+# acceptable values:
+## lax, lax-wendroff, maccormack, steger-warming, rk4, roe, tvd
+method  = 'steger-warming'
 
-avmodel = False
+avmodel = True
 kappa2  = 2.
 kappa4  = 0.05
 
