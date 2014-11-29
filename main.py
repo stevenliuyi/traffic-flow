@@ -17,6 +17,9 @@ def ic():
     elif (model == 'pw'):
         u[0,:] *= rho0
         u[1,:] *= rho0 * vel(rho0)
+    elif (model == 'zhang'):
+        u[0,:] *= rho0
+        u[1,:] *= 0.
     return u
 
 # -----------------------------------------------------------------------------
@@ -60,6 +63,9 @@ def maxlam(u):
             lam = max(lam, abs(vel(u[0,i])))
         elif (model == 'pw'):
             lam = max(lam, abs(u[1,i]/u[0,i])+c0)
+        elif (model == 'zhang'):
+            vi  = u[1,i]/u[0,i] + vel(u[0,i])
+            lam = max(lam, abs(vi), abs(vi+u[0,i]*(-0.9)))
     return lam
 
 # -----------------------------------------------------------------------------
@@ -88,6 +94,10 @@ def ee(ui):
         rhoi = ui[0]
         vi   = ui[1] / ui[0]
         ei   = np.array([rhoi*vi, rhoi*vi**2 + c0**2*rhoi])
+    elif (model == 'zhang'):
+        rhoi = ui[0]
+        mi   = ui[1]
+        ei   = np.array([mi+rhoi*vel(rhoi), mi**2/rhoi+mi*vel(rhoi)])
     return ei
     
 # -----------------------------------------------------------------------------
@@ -262,19 +272,22 @@ xmin = 0
 xmax = 100
 nx   = 151     # number of grid points
 
-rho0 = 0.5
-fr   = 0.2
-cfl  = 0.5
-imax = 500
-eps  = 1e-5
-tmax = 20
-c0   = 0.5     # for PW model
+rho0  = 0.5
+fr    = 0.2
+cfl   = 0.5
+imax  = 500
+eps   = 1e-5
+tmax  = 20
+c0    = 0.5     # for PW model
 
 # -----------------------------------------------------------------------------
 # traffic flow model
-# acceptable values: lwr (Lighthill-Whitham-Richards), pw (Payne-Whitham)
-model = 'pw'
-lmax  = 2 if (model == 'pw') else 1
+# acceptable values:
+## lwr   (Lighthill-Whitham-Richards model)
+## pw    (Payne-Whitham model)
+## zhang (Zhang model)
+model = 'zhang'
+lmax  = 1 if (model == 'lwr') else 2
 
 # relationship between density and speed
 # acceptable values: greenshield, greenberg, underwood
@@ -283,7 +296,7 @@ state = 'greenshield'
 # -----------------------------------------------------------------------------
 # numerical methods
 # acceptable values: lax, lax-wendroff, maccormack, rk4, roe, tvd
-method  = 'steger-warming'
+method  = 'lax'
 
 avmodel = False
 kappa2  = 2.
@@ -313,21 +326,27 @@ for i in range(0, imax):
     time  += dt
     if (time < tmax * fr):
         color = 'r'
-        if (lmax == 1):
+        if (model == 'lwr'):
             u[0,0] = 0.
-        elif (lmax == 2):
+        elif (model == 'pw'):
             u[0,0] = 0.01
             #if (u[1,1]/u[0,1]<c0):
             #    u[1,0] = u[1,1]
             #else:
             u[1,0] = u[0,0]*vel(u[0,0])
+        elif (model == 'zhang'):
+            u[0,0] = 0.01
+            u[1,0] = 0.
     else:
         color = 'g'
-        if (lmax == 1):
+        if (model == 'lwr'):
             u[0,0] = rho0
-        elif (lmax == 2):
+        elif (model == 'pw'):
             u[0,0] = rho0
             u[1,0] = u[1,1]
+        elif (model == 'zhang'):
+            u[0,0] = rho0
+            u[1,0] = 0.
     u[:,-1] = u[:,-2]
 
     if (time > tmax): time = 0
