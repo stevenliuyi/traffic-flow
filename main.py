@@ -154,6 +154,22 @@ def flux(stage=0):
             e1 = ee(u[:,i])
             e2 = ee(u[:,i+1])
             e[:,i] = .5 * (e1 + e2)
+        # Steger & Warming flux vetcor splitting
+        elif (method == 'steger-warming'):
+            v1     = u[1,i]   / u[0,i]
+            v2     = u[1,i+1] / u[0,i+1]
+            lam1_p = max(v1+c0, 0)
+            lam2_p = max(v1-c0, 0)
+            lam1_m = min(v2+c0, 0)
+            lam2_m = min(v2-c0, 0)
+            Lam_p  = np.array([[lam1_p, 0], [0, lam2_p]])
+            Lam_m  = np.array([[lam1_m, 0], [0, lam2_m]])
+            a_p    = np.dot(tt(u[:,i]),   Lam_p, np.linalg.inv(tt(u[:,i])))
+            a_m    = np.dot(tt(u[:,i+1]), Lam_m, np.linalg.inv(tt(u[:,i+1])))
+            e_p    = np.dot(a_p, u[:,i])
+            e_m    = np.dot(a_m, u[:,i+1])
+            e[:,i] = e_p + e_m
+        # Roe's approximate Riemann solver
         elif (method == 'roe'):
             e1      = ee(u[:,i])
             e2      = ee(u[:,i+1])
@@ -172,6 +188,7 @@ def flux(stage=0):
             e[:,i] = .5 * (e1 + e2)
             for l in range(0, lmax):
                 e[:,i] -= .5 * delta[l] * abs(avglam[l]) * avgt[:,l]
+        # TVD method
         elif (method == 'tvd'):
             e1      = ee(u[:,i])
             e2      = ee(u[:,i+1])
@@ -237,7 +254,7 @@ def av(e):
 # determine the order of given method
 def get_order(method):
     order = {'lax':1, 'lax-wendroff':2, 'maccormack':2, 'rk4':2, \
-             'roe':1, 'tvd':2}
+             'steger-warming':1, 'roe':1, 'tvd':2}
     return order[method]
 # -----------------------------------------------------------------------------
 # parameters
@@ -266,9 +283,9 @@ state = 'greenshield'
 # -----------------------------------------------------------------------------
 # numerical methods
 # acceptable values: lax, lax-wendroff, maccormack, rk4, roe, tvd
-method  = 'tvd'
+method  = 'steger-warming'
 
-avmodel = True
+avmodel = False
 kappa2  = 2.
 kappa4  = 0.05
 
