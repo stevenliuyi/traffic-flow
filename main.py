@@ -292,15 +292,15 @@ def get_order(method):
 # -----------------------------------------------------------------------------
 # parameters
 xmin = 0
-xmax = 100
+xmax = 200
 nx   = 151     # number of grid points
 
-rho0  = 0.5
-fr    = 0.2
+rho0  = 0.8
+fr    = 0.3
 cfl   = 0.5
-imax  = 500
+imax  = 800
 eps   = 1e-5
-tmax  = 20
+tmax  = 50
 k     = 0.9     # for Greenshield model
 c0    = 0.5     # for PW model
 
@@ -310,7 +310,7 @@ c0    = 0.5     # for PW model
 ## lwr   (Lighthill-Whitham-Richards model)
 ## pw    (Payne-Whitham model)
 ## zhang (Zhang model)
-model = 'zhang'
+model = 'lwr'
 lmax  = 1 if (model == 'lwr') else 2
 
 # relationship between density and speed
@@ -322,11 +322,11 @@ state = 'greenshield'
 # acceptable values:
 ## lax, lax-wendroff, maccormack, steger-warming
 ## rk4, roe, tvd-superbee, tvd-vanleer
-method  = 'tvd-superbee'
+method  = 'maccormack'
 
-avmodel = False
-kappa2  = 2.
-kappa4  = 0.05
+avmodel = True
+kappa2  = .2
+kappa4  = 0.02
 
 # turn off AV model for first-order schemes
 order = get_order(method)
@@ -353,26 +353,25 @@ for i in range(0, imax):
     if (time < tmax * fr):
         color = 'r'
         if (model == 'lwr'):
-            u[0,0] = 0.
+            u[0,nx/2] = 1.
+            #u[0,nx/2]   = 0.
         elif (model == 'pw'):
-            u[0,0] = 0.01
-            #if (u[1,1]/u[0,1]<c0):
-            #    u[1,0] = u[1,1]
-            #else:
-            u[1,0] = u[0,0]*vel(u[0,0])
+            u[0,nx/2] = 1.
+            u[1,nx/2] = u[0,nx/2]*vel(u[0,nx/2])
         elif (model == 'zhang'):
-            u[0,0] = 0.01
-            u[1,0] = 0.
+            u[0,nx/2] = 1.
+            u[1,nx/2] = 0.
     else:
         color = 'g'
         if (model == 'lwr'):
-            u[0,0] = rho0
+            u[0,nx/2] = rho0
+            #u[0,nx/2]   = rho0
         elif (model == 'pw'):
-            u[0,0] = rho0
-            u[1,0] = u[1,1]
+            u[0,nx/2] = rho0
+            u[1,nx/2] = u[0,nx/2]*vel(u[0,nx/2])
         elif (model == 'zhang'):
-            u[0,0] = rho0
-            u[1,0] = 0.
+            u[0,nx/2] = rho0
+            u[1,nx/2] = 0.
     u[:,-1] = u[:,-2]
 
     if (time > tmax): time = 0
