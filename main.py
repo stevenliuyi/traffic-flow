@@ -48,6 +48,28 @@ def solver():
             e   = flux()
             res = residual(e)
             u   = u_old + alpha[stage] * dt * res
+    elif (method == 'beam-warming'):
+        e   = flux()
+        res = residual(e)
+        # Thomas algorithm
+        ci = np.zeros(nx-1)
+        ci[0] = .25 * dt / dx * aa(u[:,1])
+        for i in range(1, nx-2):
+            ci[i] = ( .25 * dt / dx * aa(u[:,i+1])) / (1 - \
+                    (-.25 * dt / dx * aa(u[:,i-1]) * ci[i-1]))
+        di = np.zeros(nx)
+        di[0] = dt * res[:,0]
+        for i in range(1, nx-1):
+            di[i] = (dt * res[:,i] - \
+                    (-.25 * dt / dx * aa(u[:,i-1])) * di[i-1]) / (1 - \
+                    (-.25 * dt / dx * aa(u[:,i-1])) * ci[i-1])
+        di[-1] = (   - .25 * dt / dx * aa(u[:,-2]) * di[-2]) / \
+                 ( 1 - .25 * dt / dx * aa(u[:,-1]) * ci[-1])
+        du = np.zeros(nx)
+        du[-1] = di[-1]
+        for i in range(nx-2, -1, -1):
+            du[i] += di[i] - ci[i] * du[i+1]
+        u += du
     else:
         e   = flux()
         res = residual(e)
@@ -179,6 +201,11 @@ def flux(stage=0):
             e1 = ee(u[:,i])
             e2 = ee(u[:,i+1])
             e[:,i] = .5 * (e1 + e2)
+        # Beam & Warming method
+        elif (method == 'beam-warming'):
+            e1 = ee(u[:,i])
+            e2 = ee(u[:,i+1])
+            e[:,i] = .5 * (e1 + e2)
         # Steger & Warming flux vetcor splitting
         elif (method == 'steger-warming'):
             if (model == 'pw'):
@@ -284,6 +311,7 @@ def get_order(method):
              'lax-wendroff':   2, \
              'maccormack':     2, \
              'rk4':            2, \
+             'beam-warming':2, \
              'steger-warming': 1, \
              'roe':            1, \
              'tvd-superbee':   2, \
@@ -295,8 +323,8 @@ xmin = 0
 xmax = 200
 nx   = 151     # number of grid points
 
-rho0  = 0.8
-fr    = 0.3
+rho0  = 0.3
+fr    = 0.5
 cfl   = 0.5
 imax  = 800
 eps   = 1e-5
@@ -320,9 +348,9 @@ state = 'greenshield'
 # -----------------------------------------------------------------------------
 # numerical methods
 # acceptable values:
-## lax, lax-wendroff, maccormack, steger-warming
+## lax, lax-wendroff, maccormack, beam-warming, steger-warming
 ## rk4, roe, tvd-superbee, tvd-vanleer
-method  = 'maccormack'
+method  = 'beam-warming'
 
 avmodel = True
 kappa2  = .2
@@ -347,7 +375,7 @@ for i in range(0, imax):
 
     solver()
 
-    maxres = max(abs(res[0,]))
+    # maxres = max(abs(res[0,]))
     # if (maxres < 1e-5): break
     time  += dt
     if (time < tmax * fr):
@@ -372,6 +400,7 @@ for i in range(0, imax):
         elif (model == 'zhang'):
             u[0,nx/2] = rho0
             u[1,nx/2] = 0.
+    u[:, 0] = u[:, 1]
     u[:,-1] = u[:,-2]
 
     if (time > tmax): time = 0
